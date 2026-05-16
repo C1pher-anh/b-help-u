@@ -423,13 +423,23 @@
     downloadBtn.addEventListener('click', () => {
       if (!pdfBlob) return;
       const url = URL.createObjectURL(pdfBlob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = 'converted.pdf';
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
+      const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+
+      if (isMobile) {
+        // Mobile browsers (especially iOS Safari) don't support blob download via a.click()
+        // Open in new tab so user can use native share/save
+        window.open(url, '_blank');
+        // Keep the blob URL alive since the new tab needs it
+        setTimeout(() => URL.revokeObjectURL(url), 60000);
+      } else {
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'converted.pdf';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+      }
     });
 
     newConvertBtn.addEventListener('click', () => {
