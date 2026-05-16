@@ -9,7 +9,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="css/style.css">
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"></script>
+  <script src="https://unpkg.com/docx-preview/dist/docx-preview.min.js"></script>
   <style>
     .print-guide {
       background: rgba(79, 70, 229, 0.06);
@@ -32,6 +32,18 @@
       font-size: 0.85em;
       font-weight: 600;
       color: var(--color-primary);
+    }
+    .doc-preview {
+      background: var(--color-bg);
+      border-radius: var(--radius-md, 8px);
+      padding: 16px;
+    }
+    .doc-preview .docx-page {
+      margin: 0 auto 20px;
+      box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+    .doc-preview .docx-page:last-child {
+      margin-bottom: 0;
     }
   </style>
 </head>
@@ -89,7 +101,7 @@
               <span class="preview-count" id="pageEstimate">—</span>
             </div>
             <div class="preview-content" style="padding:32px;min-height:400px;display:block;overflow-y:auto;max-height:600px">
-              <div id="docPreview" class="doc-preview" style="color:var(--color-text);line-height:1.8;font-size:14px"></div>
+              <div id="docPreview" class="doc-preview"></div>
             </div>
           </div>
 
@@ -118,16 +130,6 @@
                 <option value="15">标准 (15mm)</option>
                 <option value="10">小 (10mm)</option>
                 <option value="20">大 (20mm)</option>
-              </select>
-            </div>
-
-            <div class="setting-group">
-              <label>正文字号</label>
-              <select id="fontScale">
-                <option value="12">12px</option>
-                <option value="13">13px</option>
-                <option value="14" selected>14px</option>
-                <option value="16">16px</option>
               </select>
             </div>
 
@@ -205,55 +207,46 @@
       }
 
       fileName.textContent = file.name;
-      docPreview.innerHTML = '';
+      docPreview.innerHTML = '<p style="text-align:center;padding:40px;color:var(--color-text-muted)">正在解析文档...</p>';
+      pageEstimate.textContent = '—';
 
       const reader = new FileReader();
       reader.onload = async (e) => {
         docxBuffer = e.target.result;
         try {
-          const result = await mammoth.convertToHtml({
-            arrayBuffer: docxBuffer,
-            styleMap: [
-              "p[style-name='Heading 1'] => h1:fresh",
-              "p[style-name='Heading 2'] => h2:fresh",
-              "p[style-name='Heading 3'] => h3:fresh",
-              "r[style-name='Strong'] => strong",
-              "r[style-name='Emphasis'] => em"
-            ]
+          docPreview.innerHTML = '';
+          await docx.renderAsync(docxBuffer, docPreview, null, {
+            breakPages: true,
+            inWrapper: true,
+            ignoreWidth: false,
+            ignoreHeight: false,
+            ignoreFonts: false,
+            renderHeaders: true,
+            renderFooters: true,
+            renderFootnotes: true,
+            renderEndnotes: true,
+            renderChanges: false,
           });
 
-          // Wrap in a container for proper styling
-          const html = result.value
-            // Fix mammoth's inline style for better print rendering
-            .replace(/style="text-align:/g, 'style="text-align:')
-            .replace(/<p>/g, '<p style="margin:0.3em 0;">')
-            .replace(/<p style="margin:0\.3em 0;" style="text-align:/g, '<p style="text-align:');
-
-          docPreview.innerHTML = html;
+          const pageCount = docPreview.querySelectorAll('.docx-page').length;
+          if (pageCount > 0) {
+            pageEstimate.textContent = `${pageCount} 页`;
+          }
 
           workspace.style.display = 'block';
           uploadArea.style.display = 'none';
           printGuide.style.display = 'none';
-          estimatePages();
-
-          if (result.messages.length) console.warn('Mammoth messages:', result.messages);
         } catch (err) {
           console.error(err);
+          docPreview.innerHTML = '<p style="text-align:center;padding:40px">文档解析失败，请检查文件格式</p>';
           showToast('文档解析失败，请检查文件格式');
         }
       };
+      reader.onerror = () => {
+        showToast('文件读取失败');
+      };
       reader.readAsArrayBuffer(file);
       fileInput.value = '';
-    }
-
-    function estimatePages() {
-      const text = docPreview.textContent || '';
-      const fontSize = parseInt(document.getElementById('fontScale').value);
-      const charsPerLine = 80;
-      const linesPerPage = 50;
-      const charsPerPage = charsPerLine * linesPerPage * (14 / fontSize);
-      const pages = Math.max(1, Math.ceil(text.length / charsPerPage));
-      pageEstimate.textContent = `约 ${pages} 页`;
     }
 
     reuploadBtn.addEventListener('click', () => {
@@ -271,8 +264,6 @@
       }
     });
 
-    document.getElementById('fontScale').addEventListener('change', estimatePages);
-
     convertBtn.addEventListener('click', () => {
       if (!docxBuffer) {
         showToast('请先上传文档');
@@ -282,12 +273,13 @@
       const orientation = document.querySelector('#orientationGroup .active').dataset.value;
       const pageSize = document.getElementById('pageSize').value;
       const margin = document.getElementById('marginSize').value;
-      const fontSize = parseInt(document.getElementById('fontScale').value);
 
-      const sizeMap = { a4: '210mm 297mm', letter: '215.9mm 279.4mm' };
-      const paper = sizeMap[pageSize] || sizeMap.a4;
+      // Detect page size from rendered document, fall back to user selection
+      const firstPage = docPreview.querySelector('.docx-page');
+      const pageWidth = firstPage ? firstPage.style.width : (orientation === 'landscape' ? '297mm' : '210mm');
+      const pageHeight = firstPage ? firstPage.style.height : (orientation === 'landscape' ? '210mm' : '297mm');
+      const paper = `${pageWidth} ${pageHeight}`;
 
-      // Build a self-contained print document
       const printDoc = `<!DOCTYPE html>
 <html>
 <head>
@@ -295,40 +287,35 @@
 <title>${escapeHtml(fileName.textContent)}</title>
 <style>
   @page {
-    size: ${paper} ${orientation};
+    size: ${paper};
     margin: 0;
   }
   body {
-    font-family: 'Inter', 'Segoe UI', 'SimSun', 'Microsoft YaHei', 'PingFang SC', sans-serif;
-    font-size: ${fontSize}px;
-    line-height: 1.75;
-    color: #0F172A;
-    padding: ${margin}mm;
+    margin: 0;
+    padding: 0;
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
   }
-  h1 { font-size: 1.8em; margin: 0.6em 0 0.35em; line-height: 1.25; page-break-after: avoid; }
-  h2 { font-size: 1.4em; margin: 0.55em 0 0.3em; line-height: 1.3; page-break-after: avoid; }
-  h3 { font-size: 1.15em; margin: 0.45em 0 0.25em; page-break-after: avoid; }
-  p { margin: 0.35em 0; orphans: 3; widows: 3; }
-  ul, ol { margin: 0.35em 0; padding-left: 1.8em; }
-  li { margin: 0.15em 0; }
-  table { border-collapse: collapse; width: 100%; margin: 0.6em 0; page-break-inside: avoid; }
-  table td, table th { border: 1px solid #ccc; padding: 5px 10px; font-size: 0.9em; }
-  img { max-width: 100%; height: auto; }
-  blockquote { border-left: 3px solid #4F46E5; padding-left: 1em; margin: 0.5em 0; color: #475569; }
-  /* Avoid page breaks in the middle of content */
-  h1, h2, h3, h4 { page-break-after: avoid; }
-  tr, li { page-break-inside: avoid; }
+  .docx-wrapper {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+  .docx-page {
+    page-break-after: always;
+    margin: 0 auto !important;
+    box-shadow: none !important;
+  }
+  .docx-page:last-child {
+    page-break-after: auto;
+  }
 </style>
 </head>
 <body>
 ${docPreview.innerHTML}
 <script>
-  // Auto-trigger print after fonts load
   document.fonts.ready.then(() => {
     window.print();
-    // Close window after print dialog is done
     window.addEventListener('afterprint', () => window.close());
   });
 <\/script>
@@ -344,14 +331,13 @@ ${docPreview.innerHTML}
         return;
       }
 
-      // Show guide after a short delay (print dialog may block)
       printGuide.style.display = 'block';
       setTimeout(() => URL.revokeObjectURL(url), 60000);
     });
 
     function escapeHtml(str) {
       const div = document.createElement('div');
-      div.textContent = str;
+      div.textContent = str || '';
       return div.innerHTML;
     }
   })();
