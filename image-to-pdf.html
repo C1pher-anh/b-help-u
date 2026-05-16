@@ -370,38 +370,41 @@
             pdf.addImage(images[i].dataUrl, 'JPEG', 0, 0, w, h, undefined, 'FAST');
           } else {
             const [pw, ph] = pageSizes[pageSize] || pageSizes.a4;
-            const margin = 5;
-            const maxW = pw - margin * 2;
-            const maxH = ph - margin * 2;
-
             const imgRatio = images[i].width / images[i].height;
-            const pageRatio = maxW / maxH;
+            const pageRatio = pw / ph;
 
             let drawW, drawH, x, y;
+            const compression = quality >= 1 ? 'NONE' : 'FAST';
 
             if (fitMode === 'contain') {
-              if (imgRatio > pageRatio) {
+              const margin = 10;
+              const maxW = pw - margin * 2;
+              const maxH = ph - margin * 2;
+              const innerRatio = maxW / maxH;
+
+              if (imgRatio > innerRatio) {
                 drawW = maxW;
                 drawH = maxW / imgRatio;
               } else {
                 drawH = maxH;
                 drawW = maxH * imgRatio;
               }
+              x = (pw - drawW) / 2;
+              y = (ph - drawH) / 2;
             } else {
-              // fill: cover the page
+              // fill: true edge-to-edge, no margins
               if (imgRatio > pageRatio) {
-                drawH = maxH;
-                drawW = maxH * imgRatio;
+                drawH = ph;
+                drawW = ph * imgRatio;
               } else {
-                drawW = maxW;
-                drawH = maxW / imgRatio;
+                drawW = pw;
+                drawH = pw / imgRatio;
               }
+              x = (pw - drawW) / 2;
+              y = (ph - drawH) / 2;
             }
 
-            x = (pw - drawW) / 2;
-            y = (ph - drawH) / 2;
-
-            pdf.addImage(images[i].dataUrl, 'JPEG', x, y, drawW, drawH, undefined, 'FAST');
+            pdf.addImage(images[i].dataUrl, 'JPEG', x, y, drawW, drawH, undefined, compression);
           }
         }
 
