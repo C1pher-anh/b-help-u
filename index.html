@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="B help U — 实用在线工具集，让日常工作更高效。">
+  <title>B help U — 实用工具集</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <div class="bg-decoration"></div>
+
+  <!-- Navbar -->
+  <nav class="navbar" id="navbar">
+    <div class="container">
+      <a href="/" class="logo">
+        <div class="logo-icon">B</div>
+        B help U
+      </a>
+      <div class="nav-actions">
+        <button class="theme-toggle" id="themeToggle" aria-label="切换暗色模式" title="切换暗色/亮色模式">
+          <span class="theme-icon-dark">🌙</span>
+          <span class="theme-icon-light" style="display:none">☀️</span>
+        </button>
+      </div>
+    </div>
+  </nav>
+
+  <!-- Hero -->
+  <section class="hero">
+    <div class="container">
+      <div class="hero-badge">
+        <span class="hero-badge-dot"></span>
+        工具持续更新中
+      </div>
+      <h1>
+        让每个任务都<br><span class="gradient-text">简单高效</span>
+      </h1>
+      <p>
+        B help U 是一套轻量级在线工具集，无需安装，打开即用。
+        从图片转 PDF 开始，更多工具即将上线。
+      </p>
+      <div class="hero-actions">
+        <a href="image-to-pdf.html" class="btn btn-primary btn-lg">
+          开始使用 →
+        </a>
+        <a href="#tools" class="btn btn-glass btn-lg">
+          浏览工具
+        </a>
+      </div>
+    </div>
+  </section>
+
+  <!-- Tools Section -->
+  <section class="tools-section" id="tools">
+    <div class="container">
+      <div class="section-header">
+        <h2>全部工具</h2>
+        <p>简单、快速、免费，每个工具专注做好一件事。</p>
+      </div>
+      <div class="tools-grid">
+        <!-- Image to PDF -->
+        <a href="image-to-pdf.html" class="tool-card">
+          <div class="tool-card-icon indigo">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+              <circle cx="8.5" cy="8.5" r="1.5"/>
+              <polyline points="21 15 16 10 5 21"/>
+            </svg>
+          </div>
+          <h3>图片转 PDF</h3>
+          <p>将多张图片合并转换为 PDF 文件，支持自定义纸张大小和方向，完全在浏览器本地处理。</p>
+          <span class="btn btn-glass">使用工具 →</span>
+        </a>
+
+        <!-- Placeholder cards -->
+        <div class="tool-card placeholder">
+          <div class="placeholder-icon">🔜</div>
+          <span>更多工具即将上线…</span>
+        </div>
+
+        <div class="tool-card placeholder">
+          <div class="placeholder-icon">💡</div>
+          <span>有工具需求？欢迎反馈</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Footer -->
+  <footer class="footer">
+    <div class="container">
+      <span>&copy; 2026 B help U. All rights reserved.</span>
+      <span>Made with ❤️</span>
+    </div>
+  </footer>
+
+  <script src="js/main.js"></script>
+</body>
+</html>
