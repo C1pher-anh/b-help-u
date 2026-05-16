@@ -422,16 +422,21 @@
 
     downloadBtn.addEventListener('click', () => {
       if (!pdfBlob) return;
-      const url = URL.createObjectURL(pdfBlob);
       const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
 
       if (isMobile) {
-        // Mobile browsers (especially iOS Safari) don't support blob download via a.click()
-        // Open in new tab so user can use native share/save
-        window.open(url, '_blank');
-        // Keep the blob URL alive since the new tab needs it
-        setTimeout(() => URL.revokeObjectURL(url), 60000);
+        const file = new File([pdfBlob], 'converted.pdf', { type: 'application/pdf' });
+
+        if (navigator.canShare && navigator.canShare({ files: [file] })) {
+          navigator.share({ files: [file] });
+        } else {
+          // Fallback: data URL navigation for browsers that don't support file sharing
+          const reader = new FileReader();
+          reader.onload = () => { window.location.href = reader.result; };
+          reader.readAsDataURL(pdfBlob);
+        }
       } else {
+        const url = URL.createObjectURL(pdfBlob);
         const a = document.createElement('a');
         a.href = url;
         a.download = 'converted.pdf';
