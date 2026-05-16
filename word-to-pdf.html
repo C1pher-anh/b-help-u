@@ -1,0 +1,349 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="免费在线Word转PDF工具，将.docx文档转换为PDF格式，完全在浏览器本地处理，保护隐私。">
+  <title>Word 转 PDF — B help U</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+</head>
+<body>
+  <div class="bg-decoration"></div>
+
+  <nav class="navbar" id="navbar">
+    <div class="container">
+      <a href="/" class="logo">
+        <div class="logo-icon">B</div>
+        B help U
+      </a>
+      <div class="nav-actions">
+        <button class="theme-toggle" id="themeToggle" aria-label="切换暗色模式" title="切换暗色/亮色模式">
+          <span class="theme-icon-dark">🌙</span>
+          <span class="theme-icon-light" style="display:none">☀️</span>
+        </button>
+      </div>
+    </div>
+  </nav>
+
+  <main class="tool-page">
+    <div class="container">
+      <a href="/" class="back-link">← 返回首页</a>
+
+      <div class="tool-header">
+        <h1>Word 转 <span class="gradient-text">PDF</span></h1>
+        <p>上传 .docx 文档，一键转为 PDF。所有处理在浏览器本地完成，你的文件不会上传到任何服务器。</p>
+      </div>
+
+      <div class="upload-area" id="uploadArea">
+        <div class="upload-icon">
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+            <polyline points="14 2 14 8 20 8"/>
+            <line x1="16" y1="13" x2="8" y2="13"/>
+            <line x1="16" y1="17" x2="8" y2="17"/>
+          </svg>
+        </div>
+        <h3>拖拽 Word 文档到此处</h3>
+        <p>或点击选择文件</p>
+        <span class="upload-hint">支持 .docx 格式，最大 20MB</span>
+        <input type="file" id="fileInput" accept=".docx" hidden>
+      </div>
+
+      <div id="workspace" style="display:none">
+        <div class="tool-header" style="margin-bottom:24px">
+          <p id="fileName" style="font-weight:500;color:var(--color-text)"></p>
+        </div>
+
+        <div class="tool-workspace">
+          <div class="preview-panel" style="grid-column:1/-1">
+            <div class="preview-panel-header">
+              <h3>文档预览</h3>
+              <span class="preview-count" id="pageEstimate">—</span>
+            </div>
+            <div class="preview-content" id="previewContent" style="padding:32px;min-height:400px;display:block;overflow-y:auto;max-height:600px">
+              <div id="docPreview" class="doc-preview" style="color:var(--color-text);line-height:1.8;font-size:14px"></div>
+            </div>
+          </div>
+
+          <div class="settings-panel">
+            <h3>PDF 设置</h3>
+
+            <div class="setting-group">
+              <label>纸张大小</label>
+              <select id="pageSize">
+                <option value="a4" selected>A4</option>
+                <option value="letter">Letter</option>
+              </select>
+            </div>
+
+            <div class="setting-group">
+              <label>纸张方向</label>
+              <div class="radio-group" id="orientationGroup">
+                <button class="active" data-value="portrait">纵向</button>
+                <button data-value="landscape">横向</button>
+              </div>
+            </div>
+
+            <div class="setting-group">
+              <label>页边距 (mm)</label>
+              <select id="margin">
+                <option value="10">小 (10mm)</option>
+                <option value="15" selected>标准 (15mm)</option>
+                <option value="20">大 (20mm)</option>
+              </select>
+            </div>
+
+            <div class="setting-group">
+              <label>字号缩放</label>
+              <select id="fontScale">
+                <option value="0.9">90%</option>
+                <option value="1" selected>100%</option>
+                <option value="1.1">110%</option>
+                <option value="1.2">120%</option>
+              </select>
+            </div>
+
+            <button class="btn btn-primary convert-btn" id="convertBtn">
+              转换为 PDF
+            </button>
+
+            <button class="btn btn-glass convert-btn" id="reuploadBtn" style="margin-top:8px">
+              重新上传
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div class="download-section" id="downloadSection">
+        <div class="download-card">
+          <div class="success-icon">✓</div>
+          <h3>PDF 已生成</h3>
+          <p style="color:var(--color-text-secondary);font-size:0.95rem">文件大小: <strong id="pdfSize">-</strong></p>
+          <button class="btn btn-primary" id="downloadBtn">下载 PDF</button>
+          <button class="btn btn-glass" id="newConvertBtn">重新转换</button>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <div class="toast" id="toast"></div>
+
+  <script src="js/main.js"></script>
+  <script>
+  (function() {
+    const uploadArea = document.getElementById('uploadArea');
+    const fileInput = document.getElementById('fileInput');
+    const workspace = document.getElementById('workspace');
+    const fileName = document.getElementById('fileName');
+    const docPreview = document.getElementById('docPreview');
+    const previewContent = document.getElementById('previewContent');
+    const pageEstimate = document.getElementById('pageEstimate');
+    const convertBtn = document.getElementById('convertBtn');
+    const reuploadBtn = document.getElementById('reuploadBtn');
+    const downloadSection = document.getElementById('downloadSection');
+    const downloadBtn = document.getElementById('downloadBtn');
+    const newConvertBtn = document.getElementById('newConvertBtn');
+    const pdfSizeEl = document.getElementById('pdfSize');
+    const toast = document.getElementById('toast');
+
+    let pdfBlob = null;
+    let docxBuffer = null;
+
+    function showToast(msg) {
+      toast.textContent = msg;
+      toast.classList.add('show');
+      clearTimeout(toast._timeout);
+      toast._timeout = setTimeout(() => toast.classList.remove('show'), 2000);
+    }
+
+    uploadArea.addEventListener('click', () => fileInput.click());
+    fileInput.addEventListener('change', (e) => handleFile(e.target.files[0]));
+
+    uploadArea.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      uploadArea.classList.add('drag-over');
+    });
+    uploadArea.addEventListener('dragleave', () => {
+      uploadArea.classList.remove('drag-over');
+    });
+    uploadArea.addEventListener('drop', (e) => {
+      e.preventDefault();
+      uploadArea.classList.remove('drag-over');
+      handleFile(e.dataTransfer.files[0]);
+    });
+
+    async function handleFile(file) {
+      if (!file) return;
+      if (!file.name.endsWith('.docx')) {
+        showToast('仅支持 .docx 格式');
+        return;
+      }
+      if (file.size > 20 * 1024 * 1024) {
+        showToast('文件超过 20MB 限制');
+        return;
+      }
+
+      fileName.textContent = file.name;
+      const reader = new FileReader();
+      reader.onload = async (e) => {
+        docxBuffer = e.target.result;
+        try {
+          const result = await mammoth.convertToHtml({ arrayBuffer: docxBuffer });
+          docPreview.innerHTML = result.value;
+
+          if (result.messages.length > 0) {
+            console.warn('Mammoth warnings:', result.messages);
+          }
+
+          workspace.style.display = 'block';
+          uploadArea.style.display = 'none';
+          downloadSection.classList.remove('visible');
+          pdfBlob = null;
+
+          estimatePages();
+        } catch (err) {
+          console.error(err);
+          showToast('文档解析失败，请检查文件格式');
+        }
+      };
+      reader.readAsArrayBuffer(file);
+      fileInput.value = '';
+    }
+
+    function estimatePages() {
+      const text = docPreview.textContent || '';
+      const charCount = text.length;
+      const fontSize = parseFloat(document.getElementById('fontScale').value);
+      const charsPerPage = 2400 / fontSize;
+      const pages = Math.max(1, Math.ceil(charCount / charsPerPage));
+      pageEstimate.textContent = `约 ${pages} 页`;
+    }
+
+    reuploadBtn.addEventListener('click', () => {
+      docxBuffer = null;
+      docPreview.innerHTML = '';
+      workspace.style.display = 'none';
+      uploadArea.style.display = '';
+      downloadSection.classList.remove('visible');
+      pdfBlob = null;
+    });
+
+    document.getElementById('orientationGroup').addEventListener('click', (e) => {
+      if (e.target.tagName === 'BUTTON') {
+        document.querySelectorAll('#orientationGroup button').forEach(b => b.classList.remove('active'));
+        e.target.classList.add('active');
+      }
+    });
+
+    document.getElementById('fontScale').addEventListener('change', estimatePages);
+
+    convertBtn.addEventListener('click', async () => {
+      if (!docxBuffer) {
+        showToast('请先上传文档');
+        return;
+      }
+
+      convertBtn.textContent = '转换中...';
+      convertBtn.disabled = true;
+
+      await new Promise(r => setTimeout(r, 50));
+
+      try {
+        const orientation = document.querySelector('#orientationGroup .active').dataset.value;
+        const pageSize = document.getElementById('pageSize').value;
+        const margin = parseInt(document.getElementById('margin').value);
+        const fontScale = parseFloat(document.getElementById('fontScale').value);
+
+        const pageDims = {
+          a4: [210, 297],
+          letter: [215.9, 279.4]
+        };
+        const [pw, ph] = pageDims[pageSize] || pageDims.a4;
+
+        // Build a clean render container matching the PDF page
+        const renderEl = document.createElement('div');
+        renderEl.style.width = `${pw - margin * 2}mm`;
+        renderEl.style.padding = '0';
+        renderEl.style.fontFamily = "'Inter', 'SimSun', 'Microsoft YaHei', sans-serif";
+        renderEl.style.fontSize = `${14 * fontScale}px`;
+        renderEl.style.lineHeight = '1.6';
+        renderEl.style.color = '#0F172A';
+        renderEl.style.wordBreak = 'break-word';
+        renderEl.innerHTML = docPreview.innerHTML;
+        document.body.appendChild(renderEl);
+
+        const opt = {
+          margin: margin,
+          filename: 'converted.pdf',
+          image: { type: 'jpeg', quality: 0.95 },
+          html2canvas: {
+            scale: 2,
+            useCORS: true,
+            letterRendering: true,
+            logging: false
+          },
+          jsPDF: {
+            unit: 'mm',
+            format: pageSize,
+            orientation: orientation
+          },
+          pagebreak: { mode: ['avoid-all', 'css', 'legacy'] }
+        };
+
+        const pdf = await html2pdf().set(opt).from(renderEl).outputPdf('blob');
+
+        document.body.removeChild(renderEl);
+
+        pdfBlob = pdf;
+        const sizeKB = (pdf.size / 1024).toFixed(1);
+        pdfSizeEl.textContent = sizeKB > 1024 ? `${(sizeKB / 1024).toFixed(1)} MB` : `${sizeKB} KB`;
+
+        downloadSection.classList.add('visible');
+        downloadBtn.scrollIntoView({ behavior: 'smooth' });
+      } catch (err) {
+        console.error(err);
+        showToast('转换失败，请重试');
+      } finally {
+        convertBtn.textContent = '转换为 PDF';
+        convertBtn.disabled = false;
+      }
+    });
+
+    downloadBtn.addEventListener('click', () => {
+      if (!pdfBlob) return;
+      const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+
+      if (isMobile) {
+        const file = new File([pdfBlob], 'converted.pdf', { type: 'application/pdf' });
+        if (navigator.canShare && navigator.canShare({ files: [file] })) {
+          navigator.share({ files: [file] });
+        } else {
+          const reader = new FileReader();
+          reader.onload = () => { window.location.href = reader.result; };
+          reader.readAsDataURL(pdfBlob);
+        }
+      } else {
+        const url = URL.createObjectURL(pdfBlob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'converted.pdf';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+      }
+    });
+
+    newConvertBtn.addEventListener('click', () => {
+      downloadSection.classList.remove('visible');
+      pdfBlob = null;
+    });
+  })();
+  </script>
+</body>
+</html>
