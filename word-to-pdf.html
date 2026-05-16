@@ -10,7 +10,30 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="css/style.css">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+  <style>
+    .print-guide {
+      background: rgba(79, 70, 229, 0.06);
+      border: 1px solid rgba(79, 70, 229, 0.15);
+      border-radius: var(--radius-md);
+      padding: 20px 24px;
+      margin-top: 16px;
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+    }
+    .print-guide-icon {
+      font-size: 1.3rem;
+      flex-shrink: 0;
+    }
+    .print-guide code {
+      background: rgba(79, 70, 229, 0.1);
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-size: 0.85em;
+      font-weight: 600;
+      color: var(--color-primary);
+    }
+  </style>
 </head>
 <body>
   <div class="bg-decoration"></div>
@@ -36,7 +59,7 @@
 
       <div class="tool-header">
         <h1>Word 转 <span class="gradient-text">PDF</span></h1>
-        <p>上传 .docx 文档，一键转为 PDF。所有处理在浏览器本地完成，你的文件不会上传到任何服务器。</p>
+        <p>上传 .docx 文档，通过浏览器原生打印引擎转为 PDF，排版与 Word 一致。所有处理在本地完成，文件不上传。</p>
       </div>
 
       <div class="upload-area" id="uploadArea">
@@ -65,7 +88,7 @@
               <h3>文档预览</h3>
               <span class="preview-count" id="pageEstimate">—</span>
             </div>
-            <div class="preview-content" id="previewContent" style="padding:32px;min-height:400px;display:block;overflow-y:auto;max-height:600px">
+            <div class="preview-content" style="padding:32px;min-height:400px;display:block;overflow-y:auto;max-height:600px">
               <div id="docPreview" class="doc-preview" style="color:var(--color-text);line-height:1.8;font-size:14px"></div>
             </div>
           </div>
@@ -90,21 +113,21 @@
             </div>
 
             <div class="setting-group">
-              <label>页边距 (mm)</label>
-              <select id="margin">
+              <label>页边距</label>
+              <select id="marginSize">
+                <option value="15">标准 (15mm)</option>
                 <option value="10">小 (10mm)</option>
-                <option value="15" selected>标准 (15mm)</option>
                 <option value="20">大 (20mm)</option>
               </select>
             </div>
 
             <div class="setting-group">
-              <label>字号缩放</label>
+              <label>正文字号</label>
               <select id="fontScale">
-                <option value="0.9">90%</option>
-                <option value="1" selected>100%</option>
-                <option value="1.1">110%</option>
-                <option value="1.2">120%</option>
+                <option value="12">12px</option>
+                <option value="13">13px</option>
+                <option value="14" selected>14px</option>
+                <option value="16">16px</option>
               </select>
             </div>
 
@@ -115,17 +138,15 @@
             <button class="btn btn-glass convert-btn" id="reuploadBtn" style="margin-top:8px">
               重新上传
             </button>
-          </div>
-        </div>
-      </div>
 
-      <div class="download-section" id="downloadSection">
-        <div class="download-card">
-          <div class="success-icon">✓</div>
-          <h3>PDF 已生成</h3>
-          <p style="color:var(--color-text-secondary);font-size:0.95rem">文件大小: <strong id="pdfSize">-</strong></p>
-          <button class="btn btn-primary" id="downloadBtn">下载 PDF</button>
-          <button class="btn btn-glass" id="newConvertBtn">重新转换</button>
+            <div class="print-guide" style="display:none" id="printGuide">
+              <span class="print-guide-icon">💡</span>
+              <div>
+                <strong>提示</strong><br>
+                在弹出的打印对话框中选择目标为 <code>另存为 PDF</code> 或 <code>Save as PDF</code>，即可保存 PDF 文件到本地。
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -141,17 +162,12 @@
     const workspace = document.getElementById('workspace');
     const fileName = document.getElementById('fileName');
     const docPreview = document.getElementById('docPreview');
-    const previewContent = document.getElementById('previewContent');
     const pageEstimate = document.getElementById('pageEstimate');
     const convertBtn = document.getElementById('convertBtn');
     const reuploadBtn = document.getElementById('reuploadBtn');
-    const downloadSection = document.getElementById('downloadSection');
-    const downloadBtn = document.getElementById('downloadBtn');
-    const newConvertBtn = document.getElementById('newConvertBtn');
-    const pdfSizeEl = document.getElementById('pdfSize');
+    const printGuide = document.getElementById('printGuide');
     const toast = document.getElementById('toast');
 
-    let pdfBlob = null;
     let docxBuffer = null;
 
     function showToast(msg) {
@@ -189,23 +205,38 @@
       }
 
       fileName.textContent = file.name;
+      docPreview.innerHTML = '';
+
       const reader = new FileReader();
       reader.onload = async (e) => {
         docxBuffer = e.target.result;
         try {
-          const result = await mammoth.convertToHtml({ arrayBuffer: docxBuffer });
-          docPreview.innerHTML = result.value;
+          const result = await mammoth.convertToHtml({
+            arrayBuffer: docxBuffer,
+            styleMap: [
+              "p[style-name='Heading 1'] => h1:fresh",
+              "p[style-name='Heading 2'] => h2:fresh",
+              "p[style-name='Heading 3'] => h3:fresh",
+              "r[style-name='Strong'] => strong",
+              "r[style-name='Emphasis'] => em"
+            ]
+          });
 
-          if (result.messages.length > 0) {
-            console.warn('Mammoth warnings:', result.messages);
-          }
+          // Wrap in a container for proper styling
+          const html = result.value
+            // Fix mammoth's inline style for better print rendering
+            .replace(/style="text-align:/g, 'style="text-align:')
+            .replace(/<p>/g, '<p style="margin:0.3em 0;">')
+            .replace(/<p style="margin:0\.3em 0;" style="text-align:/g, '<p style="text-align:');
+
+          docPreview.innerHTML = html;
 
           workspace.style.display = 'block';
           uploadArea.style.display = 'none';
-          downloadSection.classList.remove('visible');
-          pdfBlob = null;
-
+          printGuide.style.display = 'none';
           estimatePages();
+
+          if (result.messages.length) console.warn('Mammoth messages:', result.messages);
         } catch (err) {
           console.error(err);
           showToast('文档解析失败，请检查文件格式');
@@ -217,10 +248,11 @@
 
     function estimatePages() {
       const text = docPreview.textContent || '';
-      const charCount = text.length;
-      const fontSize = parseFloat(document.getElementById('fontScale').value);
-      const charsPerPage = 2400 / fontSize;
-      const pages = Math.max(1, Math.ceil(charCount / charsPerPage));
+      const fontSize = parseInt(document.getElementById('fontScale').value);
+      const charsPerLine = 80;
+      const linesPerPage = 50;
+      const charsPerPage = charsPerLine * linesPerPage * (14 / fontSize);
+      const pages = Math.max(1, Math.ceil(text.length / charsPerPage));
       pageEstimate.textContent = `约 ${pages} 页`;
     }
 
@@ -229,8 +261,7 @@
       docPreview.innerHTML = '';
       workspace.style.display = 'none';
       uploadArea.style.display = '';
-      downloadSection.classList.remove('visible');
-      pdfBlob = null;
+      printGuide.style.display = 'none';
     });
 
     document.getElementById('orientationGroup').addEventListener('click', (e) => {
@@ -242,107 +273,86 @@
 
     document.getElementById('fontScale').addEventListener('change', estimatePages);
 
-    convertBtn.addEventListener('click', async () => {
+    convertBtn.addEventListener('click', () => {
       if (!docxBuffer) {
         showToast('请先上传文档');
         return;
       }
 
-      convertBtn.textContent = '转换中...';
-      convertBtn.disabled = true;
+      const orientation = document.querySelector('#orientationGroup .active').dataset.value;
+      const pageSize = document.getElementById('pageSize').value;
+      const margin = document.getElementById('marginSize').value;
+      const fontSize = parseInt(document.getElementById('fontScale').value);
 
-      await new Promise(r => setTimeout(r, 50));
+      const sizeMap = { a4: '210mm 297mm', letter: '215.9mm 279.4mm' };
+      const paper = sizeMap[pageSize] || sizeMap.a4;
 
-      try {
-        const orientation = document.querySelector('#orientationGroup .active').dataset.value;
-        const pageSize = document.getElementById('pageSize').value;
-        const margin = parseInt(document.getElementById('margin').value);
-        const fontScale = parseFloat(document.getElementById('fontScale').value);
+      // Build a self-contained print document
+      const printDoc = `<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>${escapeHtml(fileName.textContent)}</title>
+<style>
+  @page {
+    size: ${paper} ${orientation};
+    margin: ${margin}mm;
+  }
+  body {
+    font-family: 'Inter', 'Segoe UI', 'SimSun', 'Microsoft YaHei', 'PingFang SC', sans-serif;
+    font-size: ${fontSize}px;
+    line-height: 1.75;
+    color: #0F172A;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  h1 { font-size: 1.8em; margin: 0.6em 0 0.35em; line-height: 1.25; page-break-after: avoid; }
+  h2 { font-size: 1.4em; margin: 0.55em 0 0.3em; line-height: 1.3; page-break-after: avoid; }
+  h3 { font-size: 1.15em; margin: 0.45em 0 0.25em; page-break-after: avoid; }
+  p { margin: 0.35em 0; orphans: 3; widows: 3; }
+  ul, ol { margin: 0.35em 0; padding-left: 1.8em; }
+  li { margin: 0.15em 0; }
+  table { border-collapse: collapse; width: 100%; margin: 0.6em 0; page-break-inside: avoid; }
+  table td, table th { border: 1px solid #ccc; padding: 5px 10px; font-size: 0.9em; }
+  img { max-width: 100%; height: auto; }
+  blockquote { border-left: 3px solid #4F46E5; padding-left: 1em; margin: 0.5em 0; color: #475569; }
+  /* Avoid page breaks in the middle of content */
+  h1, h2, h3, h4 { page-break-after: avoid; }
+  tr, li { page-break-inside: avoid; }
+</style>
+</head>
+<body>
+${docPreview.innerHTML}
+<script>
+  // Auto-trigger print after fonts load
+  document.fonts.ready.then(() => {
+    window.print();
+    // Close window after print dialog is done
+    window.addEventListener('afterprint', () => window.close());
+  });
+<\/script>
+</body>
+</html>`;
 
-        const pageDims = {
-          a4: [210, 297],
-          letter: [215.9, 279.4]
-        };
-        const [pw, ph] = pageDims[pageSize] || pageDims.a4;
-
-        // Build a clean render container matching the PDF page
-        const renderEl = document.createElement('div');
-        renderEl.style.width = `${pw - margin * 2}mm`;
-        renderEl.style.padding = '0';
-        renderEl.style.fontFamily = "'Inter', 'SimSun', 'Microsoft YaHei', sans-serif";
-        renderEl.style.fontSize = `${14 * fontScale}px`;
-        renderEl.style.lineHeight = '1.6';
-        renderEl.style.color = '#0F172A';
-        renderEl.style.wordBreak = 'break-word';
-        renderEl.innerHTML = docPreview.innerHTML;
-        document.body.appendChild(renderEl);
-
-        const opt = {
-          margin: margin,
-          filename: 'converted.pdf',
-          image: { type: 'jpeg', quality: 0.95 },
-          html2canvas: {
-            scale: 2,
-            useCORS: true,
-            letterRendering: true,
-            logging: false
-          },
-          jsPDF: {
-            unit: 'mm',
-            format: pageSize,
-            orientation: orientation
-          },
-          pagebreak: { mode: ['avoid-all', 'css', 'legacy'] }
-        };
-
-        const pdf = await html2pdf().set(opt).from(renderEl).outputPdf('blob');
-
-        document.body.removeChild(renderEl);
-
-        pdfBlob = pdf;
-        const sizeKB = (pdf.size / 1024).toFixed(1);
-        pdfSizeEl.textContent = sizeKB > 1024 ? `${(sizeKB / 1024).toFixed(1)} MB` : `${sizeKB} KB`;
-
-        downloadSection.classList.add('visible');
-        downloadBtn.scrollIntoView({ behavior: 'smooth' });
-      } catch (err) {
-        console.error(err);
-        showToast('转换失败，请重试');
-      } finally {
-        convertBtn.textContent = '转换为 PDF';
-        convertBtn.disabled = false;
-      }
-    });
-
-    downloadBtn.addEventListener('click', () => {
-      if (!pdfBlob) return;
-      const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
-
-      if (isMobile) {
-        const file = new File([pdfBlob], 'converted.pdf', { type: 'application/pdf' });
-        if (navigator.canShare && navigator.canShare({ files: [file] })) {
-          navigator.share({ files: [file] });
-        } else {
-          const reader = new FileReader();
-          reader.onload = () => { window.location.href = reader.result; };
-          reader.readAsDataURL(pdfBlob);
-        }
-      } else {
-        const url = URL.createObjectURL(pdfBlob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = 'converted.pdf';
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
+      const blob = new Blob([printDoc], { type: 'text/html' });
+      const url = URL.createObjectURL(blob);
+      const w = window.open(url, '_blank', 'width=800,height=600');
+      if (!w) {
+        showToast('请允许弹窗以生成 PDF');
         URL.revokeObjectURL(url);
+        return;
       }
+
+      // Show guide after a short delay (print dialog may block)
+      printGuide.style.display = 'block';
+      setTimeout(() => URL.revokeObjectURL(url), 60000);
     });
 
-    newConvertBtn.addEventListener('click', () => {
-      downloadSection.classList.remove('visible');
-      pdfBlob = null;
-    });
+    function escapeHtml(str) {
+      const div = document.createElement('div');
+      div.textContent = str;
+      return div.innerHTML;
+    }
   })();
   </script>
 </body>
