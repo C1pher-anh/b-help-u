@@ -293,10 +293,12 @@
     size: ${paper};
     margin: 0;
   }
-  body {
+  html, body {
     margin: 0;
     padding: 0;
     background: white;
+  }
+  body {
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
     text-rendering: optimizeLegibility;
@@ -306,12 +308,17 @@
   img {
     image-rendering: auto;
   }
-  body,
+  html, body,
   .docx-wrapper,
   .docx,
   .docx-page,
   .docx-page-content {
     background: white !important;
+  }
+  .docx-wrapper,
+  .docx {
+    margin: 0 !important;
+    padding: 0 !important;
   }
   .docx-wrapper {
     display: flex;
